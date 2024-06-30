@@ -93,7 +93,6 @@ func TestKeepAlive(t *testing.T) {
 	if err := l.Unlock(); err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestHeldLockExchange(t *testing.T) {
@@ -116,7 +115,7 @@ func TestHeldLockExchange(t *testing.T) {
 	if err := l.Lock(ctx, requestRelease); err != nil {
 		t.Error(err)
 	}
-	//assert that request release is called
+	// assert that request release is called
 	otherL, err := locker.NewLock("test_exchange")
 	if err != nil {
 		t.Error(err)
@@ -147,7 +146,7 @@ func TestHeldLockNoExchange(t *testing.T) {
 	if err := l.Lock(ctx, requestRelease); err != nil {
 		t.Error(err)
 	}
-	//assert that request release is called
+	// assert that request release is called
 	otherL, err := locker.NewLock("test_no_exchange")
 	if err != nil {
 		t.Error(err)

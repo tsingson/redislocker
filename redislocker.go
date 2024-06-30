@@ -3,9 +3,8 @@ package redislocker
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
@@ -28,6 +27,24 @@ func WithLogger(logger *slog.Logger) LockerOption {
 	}
 }
 
+func NewRedisClient(op *redis.Options) (*redis.Client, error) {
+	options, err := redis.ParseURL(op.Addr)
+	if err != nil {
+		return nil, err
+	}
+	if len(op.Password) > 0 {
+		options.Password = op.Password
+	}
+	if len(op.Username) > 0 {
+		options.Username = op.Username
+	}
+	if op.DB > 0 {
+		options.DB = op.DB
+	}
+	client := redis.NewClient(options)
+	return client, nil
+}
+
 func New(uri string, lockerOptions ...LockerOption) (*RedisLocker, error) {
 	connection, err := redis.ParseURL(uri)
 	if err != nil {
@@ -43,7 +60,7 @@ func New(uri string, lockerOptions ...LockerOption) (*RedisLocker, error) {
 	for _, option := range lockerOptions {
 		option(locker)
 	}
-	//defaults
+	// defaults
 	if locker.logger == nil {
 		locker.logger = slog.Default()
 	}
@@ -150,7 +167,7 @@ func (l *redisLock) Lock(ctx context.Context, releaseRequested func()) error {
 	return nil
 }
 
-func (l *redisLock) aquireLock(ctx context.Context) error {
+func (l *redisLock) acquireLock(ctx context.Context) error {
 	if err := l.mutex.TryLockContext(ctx); err != nil {
 		// Currently there aren't any errors
 		// defined by redsync we don't want to retry.
@@ -168,7 +185,7 @@ func (l *redisLock) requestLock(ctx context.Context) error {
 	var errs error
 	c := l.exchange.ReleaseChannel(ctx, l.id)
 	for {
-		err := l.aquireLock(ctx)
+		err := l.acquireLock(ctx)
 		if err == nil {
 			return nil
 		}
@@ -189,7 +206,7 @@ func (l *redisLock) requestLock(ctx context.Context) error {
 }
 
 func (l *redisLock) keepAlive(ctx context.Context) error {
-	//insures that an extend will be canceled if it's unlocked in the middle of an attempt
+	// insures that an extend will be canceled if it's unlocked in the middle of an attempt
 	for {
 		select {
 		case <-time.After(time.Until(l.mutex.Until()) / 2):
